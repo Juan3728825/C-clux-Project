@@ -1,0 +1,291 @@
+<?php
+ob_start();
+
+require('vendor/autoload.php');
+include('invoice.php');
+define('DB_SERVER', '127.0.0.1'); 
+define('DB_USERNAME', 'root'); 
+define('DB_PASSWORD', ''); 
+define('DB_NAME', 'rsms_db'); 
+
+use Picqer\Barcode\BarcodeGeneratorPNG;
+
+class CustomPDF extends PDF_Invoice
+{
+    protected $conn;
+    private $nombreCliente;
+
+    public function __construct($conn)
+    {
+        parent::__construct('P', 'mm', 'A4');
+        $this->conn = $conn;
+    }
+
+    function Header()
+    {
+        // Agregar texto en la esquina izquierda
+        $this->SetTextColor(82, 86, 89); // Color: #525659
+        $this->SetFont('Arial', 'B', 14); // Tamaño de fuente más grande
+        $this->Cell(0, 10, 'ORDEN DE SERVICIO', 0, 1, 'L'); // ln establecido en 1
+    
+        $this->SetTextColor(0, 0, 0); // Restaurar el color negro predeterminado
+        $this->SetFont('Arial', 'B', 11);
+        $this->SetXY(11, $this->GetY());
+        $this->Cell(0, 5, '#105 | 23 Mar 2023', 0, 1, 'L'); // ln establecido en 1
+    
+        $this->Image('logo-1709530220.png', $this->GetPageWidth() - 60, 3, 40);
+    
+        // Ajusta la posición absoluta para colocar el texto al lado de la imagen
+        $this->SetXY(117, 12); // Ajusta este valor según tus necesidades
+    
+        // Ajusta el tamaño de fuente para cambiar el espacio entre líneas
+        $this->SetFont('Arial', 'B', 11);
+        $this->Cell(0, 5, 'Reparacion BGA', 0, 1, 'L'); // ln establecido en 1
+    
+        // Ajusta la posición para mover el siguiente bloque de texto hacia la izquierda
+        $this->SetX(100); // Ajusta este valor según tus necesidades
+        $this->SetFont('Arial', '', 10);
+        $this->Cell(0, 5, 'Carrera 25 #50-48 Soto Mayor', 0, 1, 'L'); // ln establecido en 1
+    
+        $this->SetX(100); // Ajusta este valor según tus necesidades
+        $this->Cell(0, 5, '3133754428', 0, 1, 'L'); // ln establecido en 1
+    
+        $this->SetX(100); // Ajusta este valor según tus necesidades
+        $this->Cell(0, 5, 'reparacionbgacol@gmail.com', 0, 1, 'L'); // ln establecido en 1
+    
+        // Agregar imagen y detalles del usuario
+        $this->Image('user.png', $this->GetX(), $this->GetY(), 5, 5); // Ajusta tamaño según tus necesidades
+        $this->SetX($this->GetX() + 8); // Ajusta según tus necesidades
+
+        // Nombre del usuario
+        $this->SetFont('Arial', 'B', 11);
+        $this->Cell(0, 5, 'Laura Gomez', 0, 1, 'L'); // ln establecido en 1
+
+        // Ajusta la posición para el ID
+        $this->SetX(18); // Ajusta este valor según tus necesidades
+        $this->SetFont('Arial', '', 10);
+        $this->Cell(0, 5, 'ID: 1007193869', 0, 1, 'L'); // ln establecido en 1
+
+        // Ajusta la posición para el Teléfono
+        $this->SetX(18); // Ajusta este valor según tus necesidades
+        $this->Cell(0, 5, 'Teléfono: +573152551145', 0, 1, 'L'); // ln establecido en 1
+
+        // Ajusta la posición para la Dirección
+        $this->SetX(18); // Ajusta este valor según tus necesidades
+        $this->Cell(0, 5, 'Dirección: Calle 26 # 22-39', 0, 1, 'L'); // ln establecido en 1
+
+        // Ajusta la posición para el Email
+        $this->SetX(18); // Ajusta este valor según tus necesidades
+        $this->Cell(0, 5, 'Email: holamundo@gmail.com', 0, 1, 'L'); // ln establecido en 1
+
+    
+
+        $this->Image('share.png', $this->GetX(), $this->GetY() + 5, 5, 5); // Ajusta posición y tamaño según tus necesidades
+        $this->SetX($this->GetX() + 8); // Ajusta según tus necesidades
+
+        // Texto "Equipo"
+        $this->SetFont('Arial', 'B', 11);
+        $this->Cell(0, 5, 'Equipo', 0, 1, 'L'); // ln establecido en 1
+
+        // Información adicional del equipo
+        $this->SetFont('Arial', '', 10);
+
+        // Ajusta la posición para Móvil Apple Iphone 12 Pro max
+        $this->SetY(50); 
+        $this->SetX(120); // Ajusta este valor según tus necesidades
+        $this->Cell(0, 5, 'Móvil Apple Iphone 12 Pro max', 0, 1, 'L'); // ln establecido en 1
+
+        // Ajusta la posición para Color: Negro
+        $this->SetX(120); // Ajusta este valor según tus necesidades
+        $this->Cell(0, 5, 'Color: Negro', 0, 1, 'L'); // ln establecido en 1
+
+        // Ajusta la posición para Serie: 359871978877091
+        $this->SetX(120); // Ajusta este valor según tus necesidades
+        $this->Cell(0, 5, 'Serie: 359871978877091', 0, 1, 'L'); // ln establecido en 1
+
+
+        // No hay salto de línea después del bloque de texto
+        // Solo "RSMS" en el encabezado
+        $this->SetFont('Arial', 'B', 12);
+        $this->Ln(10);
+    }
+
+    
+    
+    
+
+
+    function Footer()
+    {
+        $this->SetY(-15);
+        $this->SetFont('Arial', 'I', 8);
+        $this->Cell(0, 10, 'PAGINA ' . $this->PageNo() . ' de {nb}', 0, 0, 'L');
+        
+        // Fecha actual de Colombia
+        date_default_timezone_set('America/Bogota');
+        $fecha_actual = utf8_encode(strftime('%A %d %B %Y'));
+
+        // Número de página y nombre del cliente
+        $this->Cell(0, 10, 'Cliente: ' . $this->nombreCliente, 0, 0, 'R');
+    }
+
+    public function setNombreCliente($nombre)
+    {
+        $this->nombreCliente = $nombre;
+    }
+
+    public function getConnection()
+    {
+        return $this->conn;
+    }
+}
+
+// Función para obtener el campo firstname del cliente
+function obtenerCampoDeCliente($conn, $repairId) {
+    if ($repairId > 0) {
+        $qry = $conn->query("SELECT c.firstname FROM `repair_list` r INNER JOIN `client_list` c ON r.client_id = c.id WHERE r.id = $repairId");
+        $row = $qry->fetch_assoc();
+        return $row['firstname'];
+    }
+    return "";
+}
+
+function obtenerFechaCreacion($conn, $repairId) {
+    if ($repairId > 0) {
+        $qry = $conn->query("SELECT date_created FROM `repair_list` WHERE id = $repairId");
+        $row = $qry->fetch_assoc();
+        return $row['date_created'];
+    }
+    return date("Y-m-d");
+}
+
+function obtenerMarca($conn, $repairId) {
+    if ($repairId > 0) {
+        $qry = $conn->query("SELECT marca FROM `repair_list` WHERE id = $repairId");
+        $row = $qry->fetch_assoc();
+        return $row['marca'];
+    }
+    return "";
+}
+
+function obtenerObservaciones($conn, $repairId) {
+    if ($repairId > 0) {
+        $qry = $conn->query("SELECT remarks FROM `repair_list` WHERE id = $repairId");
+        $row = $qry->fetch_assoc();
+        return $row['remarks'];
+    }
+    return "";
+}
+
+function obtenerFalla($conn, $repairId) {
+    if ($repairId > 0) {
+        $qry = $conn->query("SELECT fallas FROM `repair_list` WHERE id = $repairId");
+        $row = $qry->fetch_assoc();
+        return $row['fallas'];
+    }
+    return "";
+}
+
+$conn = new mysqli(DB_SERVER, DB_USERNAME, DB_PASSWORD, DB_NAME);
+
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+$repairId = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+
+if ($repairId > 0) {
+    $qry = $conn->query("SELECT * FROM `users` where id = '{$_GET['id']}'");
+    $qry = $conn->query("SELECT r.*, c.* FROM `repair_list` r INNER JOIN client_list c ON r.client_id = c.id WHERE r.id = $repairId");
+    $row = $qry->fetch_assoc();
+
+    $pdf = new CustomPDF($conn);
+    $pdf->AliasNbPages();
+    $pdf->AddPage();
+
+    // Obtener el nombre del cliente
+    $nombreCliente = obtenerCampoDeCliente($conn, $repairId);
+    $pdf->setNombreCliente($nombreCliente);
+
+    $pdf->temporaire("REPARACION BGA");
+    
+    // Obtener la fecha de creación de la reparación
+    $fechaCreacion = obtenerFechaCreacion($conn, $repairId);
+    
+    
+    $pdf->addReglement("1");
+    $pdf->addEcheance(date("d/m/Y"));
+    $pdf->addNumTVA("FR888777666");
+
+    // Obtener la marca, observaciones y falla
+    $marca = obtenerMarca($conn, $repairId);
+    $observaciones = obtenerObservaciones($conn, $repairId);
+    $falla = obtenerFalla($conn, $repairId);
+
+    $cols = array(
+        "MARCA"    => 23,
+        "OBSERVACIONES"  => 78,
+        "CANTIDAD"     => 22,
+        "P.U. HT"      => 26,
+        "FALLA" => 30,
+        "TVA"          => 11
+    );
+
+    $pdf->addCols($cols);
+    $cols = array(
+        "MARCA"    => "L",
+        "OBSERVACIONES"  => "L",
+        "CANTIDAD"     => "C",
+        "P.U. HT"      => "R",
+        "FALLA" => "R",
+        "TVA"          => "C"
+    );
+    $pdf->addLineFormat($cols);
+    $pdf->addLineFormat($cols);
+
+    $y = 109;
+    $line = array(
+        "MARCA"    => $marca,
+        "OBSERVACIONES"  => $observaciones,
+        "CANTIDAD"     => "1",
+        "P.U. HT"      => "600.00",
+        "FALLA" => $falla,
+        "TVA"          => "1"
+    );
+    $size = $pdf->addLine($y, $line);
+    $y += $size + 2;
+
+    $pdf->addCadreTVAs();
+
+    $tot_prods = array(
+        array("px_unit" => 600, "qte" => 1, "tva" => 1)
+        // La línea correspondiente a REF2 Cable RS232 ha sido eliminada
+    );
+
+    $tab_tva = array("1" => 19.6);
+
+    $params = array(
+        "RemiseGlobale"   => 1,
+        "remise_tva"      => 1,
+        "remise"          => 0,
+        "remise_percent"  => 10,
+        "FraisPort"       => 1,
+        "portTTC"         => 10,
+        "portHT"          => 0,
+        "portTVA"         => 19.6,
+        "AccompteExige"   => 1,
+        "accompte"        => 0,
+        "accompte_percent" => 15,
+        "Remarque"        => "Avec un acompte, svp..."
+    );
+
+    $pdf->addTVAs($params, $tab_tva, $tot_prods);
+    $pdf->addCadreEurosFrancs();
+
+    $pdf->Output();
+
+    ob_end_flush();
+} else {
+    echo "ID de reparación no válido";
+}
+?>
